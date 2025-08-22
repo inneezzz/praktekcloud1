@@ -7,16 +7,17 @@ RUN apt-get update && \
     apt-get install -y nginx && \
     rm -rf /var/lib/apt/lists/*
 
-# Buat direktori sementara agar tidak butuh root
+# Buat direktori untuk Nginx & ubah kepemilikan ke user 1000
 RUN mkdir -p /tmp/nginx/logs /tmp/nginx/client-body /tmp/nginx/proxy \
-    /tmp/nginx/run /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi
+    /tmp/nginx/run /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi && \
+    chown -R 1000:1000 /tmp/nginx
 
-# Copy website
+# Copy website ke /app
 COPY app /app
 
-# Konfigurasi nginx
+# Konfigurasi nginx: log ke stdout/stderr, port 7860
 RUN echo " \
-error_log /tmp/nginx/logs/error.log; \
+error_log /dev/stderr; \
 pid /tmp/nginx/run/nginx.pid; \
 \
 events { \
@@ -40,7 +41,7 @@ http { \
         root /app; \
         index index.html; \
 \
-        access_log /tmp/nginx/logs/access.log; \
+        access_log /dev/stdout; \
 \
         location / { \
             try_files \$uri \$uri/ =404; \
@@ -49,10 +50,10 @@ http { \
 } \
 " > /etc/nginx/nginx.conf
 
-# Hugging Face pakai port 7860
+# Hugging Face port
 EXPOSE 7860
 
-# Jalankan non-root user
+# Jalankan sebagai non-root user
 USER 1000
 
 CMD ["nginx", "-g", "daemon off;"]
